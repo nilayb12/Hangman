@@ -3,21 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="description" content="Hangman — guess the phrase one letter at a time before the drawing is finished.">
+    <meta name="theme-color" content="#0B2239">
+    <link rel="stylesheet" href="./styles/fonts.css">
     <link rel="stylesheet" href="./styles/styles.css">
-    <link rel="icon" href="hangman-game.png" type="image/png">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="apple-touch-icon" href="./icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Hangman">
+    <link rel="icon" href="./icon-192.png" type="image/png">
     <title>Hangman</title>
 </head>
 <body>
-    <div>
-        <h1 style="text-align:center">Hangman</h1>
-        <h2 style="text-align:center">Guess correctly, spare yourself.</h2>
-        <div id="puzzle" class="puzzle"></div>
-        <p id="guesses"></p>
-        <button id="reset" class="button">Reset</button>
-    </div>
-    <script src="./scripts/request.js"></script>
-    <script src="./scripts/hangman.js"></script>
-    <script src="./scripts/app.js"></script>
+    <main class="sheet">
+
+        <header class="sheet__head">
+            <h1 class="sheet__title">Hangman</h1>
+            <p class="sheet__sub">Guess correctly, spare yourself.</p>
+        </header>
+
+        <section class="stage" aria-label="Gallows">
+            <svg class="gallows" viewBox="0 0 150 190" role="img"
+                 aria-labelledby="gallows-label">
+                <title id="gallows-label">The gallows, drawn one part per wrong guess</title>
+
+                <!-- dimension line: this is a structure, so it gets measured -->
+                <g class="gallows__dim">
+                    <path d="M14 25 V185" />
+                    <path d="M9 25 H19" />
+                    <path d="M9 185 H19" />
+                </g>
+
+                <!-- structure: always drawn -->
+                <g class="gallows__frame">
+                    <path d="M26 185 H112" />
+                    <path d="M50 185 V25" />
+                    <path d="M50 25 H120" />
+                    <path d="M120 25 V45" />
+                </g>
+
+                <!-- figure: one part revealed per wrong guess -->
+                <g class="gallows__figure">
+                    <circle data-part="1" pathLength="1" cx="120" cy="56" r="11" />
+                    <path   data-part="2" pathLength="1" d="M120 67 V115" />
+                    <path   data-part="3" pathLength="1" d="M120 78 L102 96" />
+                    <path   data-part="4" pathLength="1" d="M120 78 L138 96" />
+                    <path   data-part="5" pathLength="1" d="M120 115 L104 145 M120 115 L136 145" />
+                </g>
+                <!-- stamped when the gallows never gets built -->
+                <g class="gallows__stamp" aria-hidden="true">
+                    <rect x="31" y="86" width="94" height="36"
+                          transform="rotate(-14 78 104)" />
+                    <text x="80" y="112" text-anchor="middle"
+                          transform="rotate(-14 78 104)">VOID</text>
+                </g>
+            </svg>
+        </section>
+
+        <section class="panel">
+            <div id="puzzle" class="puzzle" aria-hidden="true"></div>
+            <p id="puzzle-sr" class="sr-only" role="status" aria-live="polite"></p>
+
+            <p id="verdict" class="verdict" role="status" aria-live="polite"></p>
+
+            <dl class="block">
+                <div class="block__cell">
+                    <dt class="block__label">Guesses left</dt>
+                    <dd class="block__value">
+                        <span id="tally" class="tally" aria-hidden="true"></span>
+                        <span id="remaining" class="block__count"></span>
+                    </dd>
+                </div>
+                <div class="block__cell block__cell--wide">
+                    <dt class="block__label">Missed</dt>
+                    <dd id="missed" class="block__value block__value--missed">&mdash;</dd>
+                </div>
+            </dl>
+        </section>
+
+        <section class="keys" aria-label="Letter keyboard">
+            <div id="keyboard" class="keys__grid"></div>
+
+            <div class="controls">
+                <fieldset class="scale">
+                    <legend class="scale__legend">Difficulty</legend>
+                    <div id="scale" class="scale__track"></div>
+                    <p id="scale-note" class="scale__note"></p>
+                </fieldset>
+
+                <button id="reset" class="cta" type="button">New game</button>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="./scripts/request.js" defer></script>
+    <script src="./scripts/hangman.js" defer></script>
+    <script src="./scripts/app.js" defer></script>
+
+    <script>
+        // Relative path, so this survives the repo being renamed or served
+        // from a different sub-path.
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch(() => {
+                    /* offline support simply won't be available */
+                })
+            })
+        }
+    </script>
 </body>
 </html>

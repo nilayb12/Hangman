@@ -1,0 +1,37 @@
+/* Self-hosted so the installed app renders correctly with no network.
+   Latin subset only. Only the weights the stylesheet actually uses:
+   Barlow Condensed 400/600, Space Mono 400/700. Fonts are under the
+   SIL Open Font License. */
+
+@font-face {
+    font-family: 'Barlow Condensed';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('../fonts/barlow-condensed-400.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Barlow Condensed';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('../fonts/barlow-condensed-600.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Space Mono';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('../fonts/space-mono-400.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Space Mono';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('../fonts/space-mono-700.woff2') format('woff2');
+}
+

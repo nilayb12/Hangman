@@ -1,0 +1,17 @@
+{
+  "name": "Hangman",
+  "short_name": "Hangman",
+  "description": "Guess the phrase one letter at a time before the drawing is finished.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "id": "/Hangman/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0B2239",
+  "theme_color": "#0B2239",
+  "icons": [
+    { "src": "icon-192.png",          "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png",          "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
