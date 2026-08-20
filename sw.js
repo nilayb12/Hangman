@@ -23,7 +23,8 @@ const SHELL = [
     './fonts/space-mono-400.woff2',
     './fonts/space-mono-700.woff2',
     './icon-192.png',
-    './icon-512.png'
+    './icon-512.png',
+    './icon-maskable-512.png'
 ]
 
 self.addEventListener('install', (event) => {

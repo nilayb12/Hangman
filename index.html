@@ -52,8 +52,35 @@
                     <path   data-part="5" pathLength="1" d="M120 115 L104 145 M120 115 L136 145" />
                 </g>
                 <!-- stamped when the gallows never gets built -->
-                <g class="gallows__stamp" aria-hidden="true">
-                    <rect x="31" y="86" width="94" height="36"
+                <defs>
+                    <!-- worn rubber never prints solid: punch ink out -->
+                    <filter id="stamp-speckle" x="-10%" y="-10%"
+                            width="120%" height="120%">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.22"
+                                      numOctaves="4" seed="9" result="t" />
+                        <feColorMatrix in="t" type="matrix"
+                            values="0 0 0 0 0
+                                    0 0 0 0 0
+                                    0 0 0 0 0
+                                    0 0 0 -1.5 1.05" />
+                    </filter>
+                    <mask id="stamp-worn">
+                        <rect x="0" y="0" width="150" height="190" fill="#fff" />
+                        <rect x="0" y="0" width="150" height="190"
+                              filter="url(#stamp-speckle)" />
+                    </mask>
+                    <!-- ragged edges, as if pressed by hand -->
+                    <filter id="stamp-rough">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.09"
+                                      numOctaves="3" seed="4" result="n" />
+                        <feDisplacementMap in="SourceGraphic" in2="n" scale="2"
+                            xChannelSelector="R" yChannelSelector="G" />
+                    </filter>
+                </defs>
+
+                <g class="gallows__stamp" aria-hidden="true"
+                   mask="url(#stamp-worn)" filter="url(#stamp-rough)">
+                    <rect x="29" y="84" width="98" height="40"
                           transform="rotate(-14 78 104)" />
                     <text x="80" y="112" text-anchor="middle"
                           transform="rotate(-14 78 104)">VOID</text>
@@ -86,11 +113,20 @@
             <div id="keyboard" class="keys__grid"></div>
 
             <div class="controls">
-                <fieldset class="scale">
-                    <legend class="scale__legend">Difficulty</legend>
-                    <div id="scale" class="scale__track"></div>
-                    <p id="scale-note" class="scale__note"></p>
-                </fieldset>
+                <div class="setup">
+                    <div class="setup__row">
+                        <fieldset class="scale">
+                            <legend class="scale__legend">Difficulty</legend>
+                            <div id="scale" class="scale__track"></div>
+                        </fieldset>
+
+                        <fieldset class="scale">
+                            <legend class="scale__legend">Words</legend>
+                            <div id="wordscale" class="scale__track"></div>
+                        </fieldset>
+                    </div>
+                    <p id="setup-note" class="scale__note"></p>
+                </div>
 
                 <button id="reset" class="cta" type="button">New game</button>
             </div>

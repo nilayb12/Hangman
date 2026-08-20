@@ -11,6 +11,7 @@
     --pale:    #A9C6E2;   /* labels, unguessed slots   */
     --chalk:   #F4F9FE;   /* revealed letters          */
     --oxide:   #E47860;   /* wrong guesses, danger     */
+    --stamp:   #F4F9FE;   /* VOID stamp on a win       */
 
     --mono: "Space Mono", ui-monospace, monospace;
     --cond: "Barlow Condensed", "Arial Narrow", sans-serif;
@@ -126,12 +127,12 @@ body {
 
 .gallows__stamp rect {
     fill: none;
-    stroke: var(--chalk);
-    stroke-width: 3;
+    stroke: var(--stamp);
+    stroke-width: 3.5;
 }
 
 .gallows__stamp text {
-    fill: var(--chalk);
+    fill: var(--stamp);
     font-family: var(--cond);
     font-size: 21px;
     font-weight: 600;
@@ -276,7 +277,7 @@ body {
     font-size: 1.1rem;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.85rem;
     min-height: 1.6em;
 }
 
@@ -385,6 +386,19 @@ body {
     align-items: center;
     justify-content: center;
     gap: var(--gap) clamp(1.25rem, 4vw, 2.5rem);
+}
+
+.setup {
+    display: grid;
+    justify-items: center;
+    gap: 0.4rem;
+}
+
+.setup__row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: clamp(1rem, 3vw, 2rem);
 }
 
 .scale {
@@ -624,5 +638,16 @@ body {
     .keys__grid,
     .keys__row {
         gap: 0.3rem;
+    }
+
+    /* Keep both scales on one line: stacked they cost ~60px of height the
+       viewport does not have. */
+    .setup__row {
+        gap: 0.75rem;
+    }
+
+    .scale__seg {
+        min-width: 1.95rem;
+        min-height: 2.4rem;
     }
 }

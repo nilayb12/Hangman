@@ -9,71 +9,73 @@ const missedEL     = document.querySelector('#missed')
 const keyboardDIV  = document.querySelector('#keyboard')
 const resetBTN     = document.querySelector('#reset')
 const scaleDIV     = document.querySelector('#scale')
-const scaleNoteP   = document.querySelector('#scale-note')
+const wordScaleDIV = document.querySelector('#wordscale')
+const setupNoteP   = document.querySelector('#setup-note')
 const figureParts  = document.querySelectorAll('.gallows__figure > *')
 const gallowsSVG   = document.querySelector('.gallows')
 
 const ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm']
 const MAX_GUESSES = 5
 const STORE_KEY = 'hangman-level'
+const WORDS_KEY = 'hangman-words'
 
 let level = DEFAULT_LEVEL
+let wordCount = DEFAULT_WORDS
 
 /* ---------- difficulty ---------- */
 
 // Wrapped because storage throws in some embedded contexts, and a saved
 // preference is never worth breaking the game over.
-const readLevel = () => {
+const readSetting = (key, valid, fallback) => {
     try {
-        const saved = Number(window.localStorage.getItem(STORE_KEY))
-        return LEVELS[saved] ? saved : DEFAULT_LEVEL
+        const saved = Number(window.localStorage.getItem(key))
+        return valid(saved) ? saved : fallback
     } catch (e) {
-        return DEFAULT_LEVEL
+        return fallback
     }
 }
 
-const saveLevel = (value) => {
+const saveSetting = (key, value) => {
     try {
-        window.localStorage.setItem(STORE_KEY, value)
+        window.localStorage.setItem(key, value)
     } catch (e) {
         /* preference simply won't persist */
     }
 }
 
-const buildScale = () => {
-    Object.keys(LEVELS).forEach((key) => {
-        const value = Number(key)
-
+// Both segmented controls are the same widget: a radio group whose change
+// handler updates one setting and restarts. A round lasts seconds, so there
+// is nothing worth preserving across the change.
+const buildScale = (container, name, values, current, onPick, describe) => {
+    values.forEach((value) => {
         const input = document.createElement('input')
         input.type = 'radio'
-        input.name = 'level'
-        input.id = `level-${value}`
+        input.name = name
+        input.id = `${name}-${value}`
         input.value = value
         input.className = 'scale__input'
-        input.checked = value === level
+        input.checked = value === current
 
         const label = document.createElement('label')
         label.setAttribute('for', input.id)
         label.className = 'scale__seg'
         label.textContent = value
-        label.title = LEVELS[value].note
+        label.title = describe(value)
 
-        // Changing difficulty starts a fresh phrase; a round is a few seconds
-        // long, so there is nothing worth preserving.
         input.addEventListener('change', () => {
-            level = value
-            saveLevel(value)
-            renderScaleNote()
+            onPick(value)
+            renderSetupNote()
             startGame()
         })
 
-        scaleDIV.appendChild(input)
-        scaleDIV.appendChild(label)
+        container.appendChild(input)
+        container.appendChild(label)
     })
 }
 
-const renderScaleNote = () => {
-    scaleNoteP.textContent = LEVELS[level].note
+const renderSetupNote = () => {
+    const plural = wordCount === 1 ? 'word' : 'words'
+    setupNoteP.textContent = `${wordCount} ${LEVELS[level].note} ${plural}`
 }
 
 /* ---------- keyboard ---------- */
@@ -269,7 +271,7 @@ const startGame = async () => {
     setMessage('Fetching a new puzzle\u2026', 'wait')
 
     try {
-        const puzzle = await getPuzzle(level)
+        const puzzle = await getPuzzle(level, wordCount)
         if (id !== runId) {
             return
         }
@@ -290,9 +292,23 @@ const startGame = async () => {
     }
 }
 
-level = readLevel()
+level = readSetting(STORE_KEY, (v) => !!LEVELS[v], DEFAULT_LEVEL)
+wordCount = readSetting(WORDS_KEY, (v) => WORD_CHOICES.includes(v), DEFAULT_WORDS)
+
 buildKeyboard()
-buildScale()
-renderScaleNote()
+
+buildScale(
+    scaleDIV, 'level', Object.keys(LEVELS).map(Number), level,
+    (v) => { level = v; saveSetting(STORE_KEY, v) },
+    (v) => `${LEVELS[v].note} words`
+)
+
+buildScale(
+    wordScaleDIV, 'words', WORD_CHOICES, wordCount,
+    (v) => { wordCount = v; saveSetting(WORDS_KEY, v) },
+    (v) => `${v} ${v === 1 ? 'word' : 'words'}`
+)
+
+renderSetupNote()
 resetBTN.addEventListener('click', startGame)
 startGame()

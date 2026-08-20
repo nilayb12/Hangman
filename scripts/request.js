@@ -25,17 +25,18 @@ const REQUEST_TIMEOUT = 9000
 // ceiling. Blocklist ships in data/words.json.
 const FETCH_COUNT = 5
 
-// Word count stays at 3, as the original game had it, so the scale varies
-// one thing only: how rare the words are. WORDS is a separate knob if you
-// want longer phrases -- but keep it at 5 or under or `diff` stops applying.
-const WORDS = 3
+// Phrase length is player-selectable from 1 to 5. The ceiling is not a design
+// choice: `diff` stops applying above 5 words, so asking for 6 would silently
+// disable difficulty.
+const WORD_CHOICES = [1, 2, 3, 4, 5]
+const DEFAULT_WORDS = 3
 
 const LEVELS = {
-    1: { diff: 1, note: 'Common words'      },
-    2: { diff: 2, note: 'Fairly common'     },
-    3: { diff: 3, note: 'Moderately common' },
-    4: { diff: 4, note: 'Uncommon words'    },
-    5: { diff: 5, note: 'Rare words'        }
+    1: { diff: 1, note: 'common'            },
+    2: { diff: 2, note: 'fairly common'     },
+    3: { diff: 3, note: 'moderately common' },
+    4: { diff: 4, note: 'uncommon'          },
+    5: { diff: 5, note: 'rare'              }
 }
 
 const DEFAULT_LEVEL = 3
@@ -92,9 +93,12 @@ const pickOffline = async (level, count, exclude = []) => {
     return picked
 }
 
-const getPuzzle = async (level) => {
+const getPuzzle = async (level, wordCount) => {
     const key = LEVELS[level] ? level : DEFAULT_LEVEL
     const spec = LEVELS[key]
+    const count = WORD_CHOICES.includes(Number(wordCount))
+        ? Number(wordCount)
+        : DEFAULT_WORDS
 
     const { blocked } = await getWordData()
 
@@ -109,19 +113,20 @@ const getPuzzle = async (level) => {
         } catch (e2) {
             // No network at all. The bundled list keeps the level meaningful,
             // which the unfiltered retry above cannot.
-            words = await pickOffline(key, WORDS)
+            words = await pickOffline(key, count)
         }
     }
 
     const pool = words
         .filter((word) => isAllowed(word, blocked))
         .map((word) => word.toLowerCase())
-        .slice(0, WORDS)
+        .slice(0, count)
 
-    // Filtering can leave us short. Top up from the bundled tier rather than
-    // spending another request on a free dyno.
-    if (pool.length < WORDS) {
-        pool.push(...await pickOffline(key, WORDS - pool.length, pool))
+    // Filtering can leave us short, and at 5 words there is no slack at all
+    // since FETCH_COUNT is capped by the `diff` ceiling. Top up from the
+    // bundled tier rather than spending another request on a free dyno.
+    if (pool.length < count) {
+        pool.push(...await pickOffline(key, count - pool.length, pool))
     }
 
     return pool.join(' ')

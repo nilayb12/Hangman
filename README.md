@@ -81,7 +81,7 @@ enough that repeats within a session are likely.
 
 | What | Where |
 |------|-------|
-| Words per phrase | `WORDS` in `request.js` — keep at 5 or under |
+| Words per phrase | player-selectable 1-5; ceiling is the `diff` limit |
 | Guesses allowed | `MAX_GUESSES` in `app.js` — the gallows has 5 parts |
 | Request timeout | `REQUEST_TIMEOUT` in `request.js` |
 | Palette | `:root` custom properties in `styles/styles.css` |
