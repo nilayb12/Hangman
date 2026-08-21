@@ -78,12 +78,28 @@
                     </filter>
                 </defs>
 
-                <g class="gallows__stamp" aria-hidden="true"
-                   mask="url(#stamp-worn)" filter="url(#stamp-rough)">
-                    <rect x="29" y="84" width="98" height="40"
-                          transform="rotate(-14 78 104)" />
-                    <text x="80" y="112" text-anchor="middle"
-                          transform="rotate(-14 78 104)">VOID</text>
+                <g class="gallows__stamp" aria-hidden="true">
+                    <!-- Knocks out the linework beneath. Same colour as the
+                         sheet, so there is no visible seam -- it only clears
+                         a space. Roughened so the lines it cuts terminate
+                         raggedly rather than on a machined edge. -->
+                    <g class="gallows__stamp-back" filter="url(#stamp-rough)">
+                        <rect x="16" y="76" width="120" height="56"
+                              transform="rotate(-14 78 104)" />
+                    </g>
+
+                    <g class="gallows__stamp-ink"
+                       mask="url(#stamp-worn)" filter="url(#stamp-rough)">
+                        <g transform="rotate(-14 78 104)">
+                            <rect x="16" y="76" width="120" height="56"
+                                  stroke-width="4" fill="none" />
+                            <text x="76" y="101" text-anchor="middle"
+                                  class="stamp__word">VOID</text>
+                            <path d="M23 110 H129" stroke-width="1.6" />
+                            <text x="76" y="125" text-anchor="middle"
+                                  class="stamp__legend">SUPERSEDED</text>
+                        </g>
+                    </g>
                 </g>
             </svg>
         </section>

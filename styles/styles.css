@@ -125,17 +125,33 @@ body {
     transition: opacity .4s ease-out .15s;
 }
 
-.gallows__stamp rect {
+.gallows__stamp-ink rect,
+.gallows__stamp-ink path {
     fill: none;
     stroke: var(--stamp);
-    stroke-width: 3.5;
+}
+
+.gallows__stamp-back rect {
+    fill: var(--panel);
+    stroke: none;
 }
 
 .gallows__stamp text {
     fill: var(--stamp);
+    stroke: none;
     font-family: var(--cond);
-    font-size: 21px;
     font-weight: 600;
+}
+
+.stamp__word {
+    font-size: 24px;
+    letter-spacing: 0.14em;
+}
+
+/* Fine print on a rubber stamp is rarely legible at a glance. At phone scale
+   this reads as "there is small print", which is the correct effect. */
+.stamp__legend {
+    font-size: 9px;
     letter-spacing: 0.16em;
 }
 
@@ -143,6 +159,9 @@ body {
     opacity: 1;
 }
 
+/* The knock-out backing separates the stamp from whatever is behind it, so
+   the frame is free to brighten again without the two competing. Stamp sits
+   on --panel at 12.5:1 regardless of what the frame does. */
 .gallows.is-void .gallows__frame > * {
     stroke: var(--chalk);
 }
