@@ -8,6 +8,7 @@ const remainingEL  = document.querySelector('#remaining')
 const missedEL     = document.querySelector('#missed')
 const keyboardDIV  = document.querySelector('#keyboard')
 const resetBTN     = document.querySelector('#reset')
+const resultCell   = document.querySelector('#result')
 const scaleDIV     = document.querySelector('#scale')
 const wordScaleDIV = document.querySelector('#wordscale')
 const setupNoteP   = document.querySelector('#setup-note')
@@ -111,6 +112,15 @@ const handleGuess = (letter) => {
     }
     game1.makeGuess(letter)
     render()
+    if (onGameEvent) {
+        const missed = game1.guessedLetters.filter((l) => !game1.word.includes(l))
+        onGameEvent({
+            type: 'progress',
+            remaining: game1.remainingGuesses,
+            missed: missed.length,
+            status: game1.status
+        })
+    }
 }
 
 // Physical keyboard. keydown gives us e.key, so Enter arrives as "Enter"
@@ -214,19 +224,39 @@ const renderBlock = () => {
     })
 }
 
+// hangman.js calls the answer a "phrase" and repeats it on a loss. Neither
+// holds any more: the words are unrelated, and the slots already reveal them.
+// Composed here rather than edited there, so the game logic stays untouched.
+const verdictText = () => {
+    if (game1.status === 'failed') {
+        return 'Out of guesses. The answer is above.'
+    }
+
+    // A correct guess never decrements, and status checks for zero first, so
+    // a win always leaves at least one guess standing.
+    const left = game1.remainingGuesses
+
+    if (left === MAX_GUESSES) {
+        return 'Solved. Not a single wrong letter.'
+    }
+    return `Solved with ${left} ${left === 1 ? 'guess' : 'guesses'} to spare.`
+}
+
 const renderVerdict = () => {
     verdictP.className = 'verdict'
     gallowsSVG.classList.toggle('is-void', game1.status === 'finished')
 
     if (game1.status === 'playing') {
         verdictP.textContent = ''
-    } else if (game1.status === 'failed') {
-        verdictP.classList.add('verdict--lost')
-        verdictP.textContent = game1.statusMessage
-    } else {
-        verdictP.classList.add('verdict--won')
-        verdictP.textContent = game1.statusMessage
+        resultCell.hidden = true
+        return
     }
+
+    resultCell.hidden = false
+    verdictP.classList.add(
+        game1.status === 'failed' ? 'verdict--lost' : 'verdict--won'
+    )
+    verdictP.textContent = verdictText()
 }
 
 const render = () => {
@@ -246,6 +276,7 @@ let runId = 0
 const setMessage = (text, variant) => {
     verdictP.className = `verdict verdict--${variant}`
     verdictP.textContent = text
+    resultCell.hidden = false
 }
 
 const lockKeyboard = () => {
@@ -255,7 +286,10 @@ const lockKeyboard = () => {
     })
 }
 
-const startGame = async () => {
+// In multiplayer both players must use identical words, so the caller can pass
+// a preset puzzle string; single-player leaves it undefined and fetches.
+let onGameEvent = null   // multiplayer observer, set via window hook
+const startGame = async (presetPuzzle) => {
     const id = ++runId
     game1 = undefined
     lastPuzzle = ''
@@ -271,12 +305,13 @@ const startGame = async () => {
     setMessage('Fetching a new puzzle\u2026', 'wait')
 
     try {
-        const puzzle = await getPuzzle(level, wordCount)
+        const puzzle = presetPuzzle || await getPuzzle(level, wordCount)
         if (id !== runId) {
             return
         }
         game1 = new Hangman(puzzle, MAX_GUESSES)
         render()
+        if (onGameEvent) onGameEvent({ type: 'start', puzzle })
     } catch (e) {
         if (id !== runId) {
             return
@@ -310,5 +345,21 @@ buildScale(
 )
 
 renderSetupNote()
-resetBTN.addEventListener('click', startGame)
+
+// Single-player reset. Multiplayer overrides this via the hook below so the
+// host controls new rounds for both players.
+let onResetClick = () => startGame()
+resetBTN.addEventListener('click', () => onResetClick())
+
+// Hook surface for menu.js (multiplayer). Kept tiny and additive; single-player
+// never touches it.
+window.HangmanGame = {
+    _word: () => game1 ? game1.word.join('') : null,
+    start: (puzzle) => startGame(puzzle),
+    setObserver: (fn) => { onGameEvent = fn },
+    setResetHandler: (fn) => { onResetClick = fn },
+    getWordConfig: () => ({ level, wordCount }),
+    fetchPuzzle: () => getPuzzle(level, wordCount)
+}
+
 startGame()

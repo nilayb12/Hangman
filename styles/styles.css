@@ -55,10 +55,14 @@ body {
     grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
     grid-template-areas:
         "head  head"
+        "stage opp"
         "stage panel"
         "keys  keys";
     align-items: start;
 }
+
+.opponent { grid-area: opp; }
+.opponent[hidden] { display: none; }
 
 .sheet__head  { grid-area: head; }
 .stage        { grid-area: stage; }
@@ -240,11 +244,6 @@ body {
     font-family: var(--mono);
     font-size: clamp(0.85rem, 2.6vw, 1rem);
     line-height: 1.5;
-    margin-bottom: 0.85rem;
-}
-
-.verdict:empty {
-    margin-bottom: 0;
 }
 
 .verdict--won    { color: var(--chalk); }
@@ -257,6 +256,9 @@ body {
 .block {
     margin-top: auto;   /* pins the readout to the foot of the panel */
     border: var(--hair) solid var(--line);
+}
+
+.block__grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
 }
@@ -266,17 +268,24 @@ body {
     min-width: 0;
 }
 
-/* Stacked or side by side, the divider follows the flow direction. */
-.block__cell + .block__cell {
+/* Spans the full width above the two readings, hidden until a game ends. */
+.block__cell--result {
+    grid-column: 1 / -1;
+    border-bottom: var(--hair) solid var(--line);
+}
+
+/* Divider follows the flow direction, and only ever between the two
+   readings -- the result row rules itself off with a bottom border. */
+.block__cell--stat + .block__cell--stat {
     border-top: var(--hair) solid var(--line);
 }
 
 @media (min-width: 22rem) {
-    .block {
+    .block__grid {
         grid-template-columns: auto minmax(0, 1fr);
     }
 
-    .block__cell + .block__cell {
+    .block__cell--stat + .block__cell--stat {
         border-top: none;
         border-left: var(--hair) solid var(--line);
     }
@@ -619,9 +628,29 @@ body {
 
     .sheet {
         border: none;
+        /* Definite height, not just a floor: a 1fr row only distributes free
+           space when the container has a size to divide. With min-height
+           alone the grid grows and the row sizes to its content instead. */
+        height: 100dvh;
         min-height: 100dvh;
+        /* Two columns so the gallows and the opponent panel share the top row.
+           The drawing compresses to a stub on mobile, so the space beside it
+           was going to waste. */
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        /* The stage row takes the slack; the puzzle and keys size to content. */
+        grid-template-rows: auto minmax(0, 1fr) auto auto;
+        grid-template-areas:
+            "head  head"
+            "stage opp"
+            "panel panel"
+            "keys  keys";
+    }
+
+    /* Single-player: no opponent, so the drawing spans the full width as before. */
+    .opponent[hidden] + .panel,
+    .opponent[hidden] { }
+    .sheet:has(.opponent[hidden]) {
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: auto auto 1fr auto;
         grid-template-areas:
             "head"
             "stage"
@@ -629,13 +658,29 @@ body {
             "keys";
     }
 
-    .stage {
-        justify-self: center;
-        width: auto;
+    .opponent {
+        align-self: stretch;
+        margin: 0;
     }
 
+    .stage {
+        justify-self: stretch;
+        /* height:100% is load-bearing. Without it the SVG resolves its
+           percentage against an indefinite box, ignores the collapsed row
+           and overflows at full size. */
+        height: 100%;
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Fills the row it is given, capped so it never dominates and floored so
+       a five-word phrase cannot squeeze it out of existence. */
     .gallows {
-        height: min(26vh, 11rem);
+        height: 100%;
+        max-height: 11rem;
+        min-height: 4.5rem;
         width: auto;
     }
 
@@ -670,3 +715,183 @@ body {
         min-height: 2.4rem;
     }
 }
+
+
+/* ============================================================
+   Screens: home, lobby, game. One visible at a time.
+   ============================================================ */
+
+.app {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.screen[hidden] { display: none; }
+
+.home,
+.lobby {
+    background: var(--panel);
+    border: var(--hair) solid var(--line);
+    width: 100%;
+    max-width: 32rem;
+    padding: clamp(1.5rem, 5vw, 3rem);
+    display: grid;
+    gap: 1.5rem;
+    align-content: start;
+}
+
+.home { text-align: center; }
+
+.home__title,
+.lobby__title {
+    font-family: var(--mono);
+    font-weight: 700;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+}
+
+.home__title { font-size: clamp(1.75rem, 6vw, 2.75rem); }
+
+.home__sub {
+    color: var(--pale);
+    letter-spacing: 0.06em;
+    margin-top: 0.5rem;
+}
+
+.home__menu {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.home__foot {
+    color: var(--pale);
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+}
+
+.cta--home {
+    width: 100%;
+    padding: 0.9rem 1rem;
+    font-size: 1.15rem;
+}
+
+/* ---------- lobby ---------- */
+
+.lobby__head {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.lobby__title { font-size: 1.1rem; }
+
+.link-back {
+    background: none;
+    border: none;
+    color: var(--pale);
+    font-family: var(--cond);
+    font-size: 1rem;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    padding: 0.25rem 0;
+}
+
+.link-back:hover { color: var(--chalk); }
+
+.lobby__choose,
+.lobby__view {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.lobby__label {
+    color: var(--pale);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.lobby__code {
+    font-family: var(--mono);
+    font-size: clamp(2rem, 9vw, 3rem);
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    color: var(--chalk);
+    text-align: center;
+    padding: 0.5rem 0;
+}
+
+.lobby__status {
+    color: var(--pale);
+    font-size: 0.9rem;
+    min-height: 1.2em;
+}
+
+.lobby__status--error { color: var(--oxide); }
+
+.lobby__input {
+    background: var(--bg);
+    border: var(--hair) solid var(--line);
+    color: var(--chalk);
+    font-family: var(--mono);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-align: center;
+    text-transform: lowercase;
+    padding: 0.7rem;
+    width: 100%;
+}
+
+.lobby__input:focus-visible {
+    outline: 2px solid var(--oxide);
+    outline-offset: 2px;
+}
+
+/* ---------- opponent panel ---------- */
+
+.opponent {
+    border: var(--hair) solid var(--line);
+    padding: 0.6rem 0.75rem;
+    display: grid;
+    gap: 0.4rem;
+    align-self: start;
+}
+
+.opponent__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.opponent__label {
+    color: var(--pale);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.opponent__status {
+    color: var(--pale);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+}
+
+.opponent__body {
+    display: flex;
+    gap: 1rem;
+    font-family: var(--mono);
+    font-size: 0.95rem;
+}
+
+.opponent__done {
+    color: var(--chalk);
+    font-weight: 700;
+}
+
+.opponent__done--won { color: var(--chalk); }
+.opponent__done--lost { color: var(--oxide); }

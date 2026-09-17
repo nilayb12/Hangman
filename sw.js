@@ -17,6 +17,8 @@ const SHELL = [
     './scripts/hangman.js',
     './scripts/request.js',
     './scripts/app.js',
+    './scripts/net.js',
+    './scripts/menu.js',
     './data/words.json',
     './fonts/barlow-condensed-400.woff2',
     './fonts/barlow-condensed-600.woff2',

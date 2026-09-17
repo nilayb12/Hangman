@@ -41,6 +41,48 @@ stale phrase is a spoiled game, and `request.js` already falls back to
 Fonts are self-hosted (latin subset, only the 4 weights the stylesheet uses)
 so the installed app renders correctly with no network.
 
+## Multiplayer
+
+Two phones race the same words. Connection is peer-to-peer over WebRTC; a
+Cloudflare Worker brokers only the initial handshake, then drops out. Gameplay
+never touches the Worker.
+
+### Deploy the Worker
+
+The signalling relay lives in `../hangman-worker/`:
+
+```
+cd hangman-worker
+npm install
+wrangler deploy
+```
+
+Then set the URL in `scripts/menu.js`:
+
+```js
+const WORKER_URL = 'wss://hangman-signal.YOUR-SUBDOMAIN.workers.dev'
+```
+
+It must be `wss://` (not `ws://`) because the PWA is served over HTTPS —
+mixed-content blocking rejects a plain-ws socket from an https page. The Worker
+is a switchboard: one Durable Object per room code, holding two WebSockets and
+relaying handshake blobs. It never sees a guess and costs essentially nothing
+(a match is ~10 requests against a 100k/day free tier).
+
+### How a match works
+
+Host fetches one puzzle and sends the words over the data channel, so both
+boards are identical. Each guess relays a small status (letters left, misses).
+First to solve wins; a tie breaks on fewest misses. The opponent's progress
+shows live in a panel above the board.
+
+### Known limit
+
+About 15% of connections (symmetric NATs, common on mobile carriers) can't do
+direct WebRTC and would need a TURN relay, which a Worker can't provide. Two
+phones on the same wifi almost never hit this. To support it, add a TURN
+service to `ICE_SERVERS` in `scripts/net.js`.
+
 ## Word source
 
 `puzzle.mead.io` was retired and its DNS record removed. Words now come from

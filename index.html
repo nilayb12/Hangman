@@ -16,7 +16,48 @@
     <title>Hangman</title>
 </head>
 <body>
-    <main class="sheet">
+    <main class="app">
+
+        <section id="screen-home" class="screen home">
+            <header class="home__head">
+                <h1 class="home__title">Hangman</h1>
+                <p class="home__sub">Guess correctly, spare yourself.</p>
+            </header>
+            <nav class="home__menu">
+                <button id="go-single" class="cta cta--home" type="button">Single player</button>
+                <button id="go-multi" class="cta cta--home" type="button">Multiplayer</button>
+            </nav>
+            <p class="home__foot">Multiplayer races a friend through the same words.</p>
+        </section>
+
+        <section id="screen-lobby" class="screen lobby" hidden>
+            <header class="lobby__head">
+                <button class="link-back" data-home type="button">&larr; Back</button>
+                <h2 class="lobby__title">Multiplayer</h2>
+            </header>
+
+            <div id="lobby-choose" class="lobby__choose">
+                <button id="lobby-host" class="cta cta--home" type="button">Host a game</button>
+                <button id="lobby-join" class="cta cta--home" type="button">Join with a code</button>
+            </div>
+
+            <div id="lobby-host-view" class="lobby__view" hidden>
+                <p class="lobby__label">Share this code</p>
+                <p id="lobby-code" class="lobby__code">&mdash;</p>
+                <p id="lobby-host-status" class="lobby__status">Waiting for a player to join&hellip;</p>
+            </div>
+
+            <div id="lobby-join-view" class="lobby__view" hidden>
+                <label class="lobby__label" for="join-code">Enter the code</label>
+                <input id="join-code" class="lobby__input" type="text"
+                       inputmode="latin" autocapitalize="off" autocorrect="off"
+                       autocomplete="off" spellcheck="false" maxlength="12" />
+                <button id="join-go" class="cta cta--home" type="button">Join</button>
+                <p id="lobby-join-status" class="lobby__status"></p>
+            </div>
+        </section>
+
+        <div class="sheet screen" id="screen-game" hidden>
 
         <header class="sheet__head">
             <h1 class="sheet__title">Hangman</h1>
@@ -104,25 +145,47 @@
             </svg>
         </section>
 
+
+        <section id="opponent" class="opponent" hidden aria-label="Opponent">
+            <div class="opponent__head">
+                <span class="opponent__label">Opponent</span>
+                <span id="opp-status" class="opponent__status">connecting&hellip;</span>
+            </div>
+            <div class="opponent__body">
+                <span class="opponent__metric">Left: <b id="opp-left">5</b></span>
+                <span class="opponent__metric">Missed: <b id="opp-missed">0</b></span>
+                <span id="opp-done" class="opponent__done"></span>
+            </div>
+        </section>
+
         <section class="panel">
+
             <div id="puzzle" class="puzzle" aria-hidden="true"></div>
             <p id="puzzle-sr" class="sr-only" role="status" aria-live="polite"></p>
 
-            <p id="verdict" class="verdict" role="status" aria-live="polite"></p>
-
-            <dl class="block">
-                <div class="block__cell">
+            <div class="block">
+                <!-- The verdict is a status line on the title block, the way a
+                     drawing sheet records its own state. Fixed to the foot of
+                     the panel, so it no longer drifts with phrase length. -->
+                <dl class="block__grid">
+                <div id="result" class="block__cell block__cell--result" hidden>
+                    <dt class="block__label">Result</dt>
+                    <dd id="verdict" class="verdict" role="status"
+                        aria-live="polite"></dd>
+                </div>
+                <div class="block__cell block__cell--stat">
                     <dt class="block__label">Guesses left</dt>
                     <dd class="block__value">
                         <span id="tally" class="tally" aria-hidden="true"></span>
                         <span id="remaining" class="block__count"></span>
                     </dd>
                 </div>
-                <div class="block__cell block__cell--wide">
+                <div class="block__cell block__cell--stat block__cell--wide">
                     <dt class="block__label">Missed</dt>
                     <dd id="missed" class="block__value block__value--missed">&mdash;</dd>
                 </div>
-            </dl>
+                </dl>
+            </div>
         </section>
 
         <section class="keys" aria-label="Letter keyboard">
@@ -148,11 +211,13 @@
             </div>
         </section>
 
+    </div>
     </main>
 
     <script src="./scripts/request.js" defer></script>
     <script src="./scripts/hangman.js" defer></script>
     <script src="./scripts/app.js" defer></script>
+    <script type="module" src="./scripts/menu.js"></script>
 
     <script>
         // Relative path, so this survives the repo being renamed or served
