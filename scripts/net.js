@@ -23,13 +23,33 @@
 const ROLE_HOST = 'host'
 const ROLE_JOIN = 'join'
 
-// Public STUN only. No TURN: two phones on the same wifi almost never need a
-// relay, and a relay is stateful bandwidth a Worker cannot provide. Documented
-// as a known limitation for hostile NATs.
-const ICE_SERVERS = [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
+// Fallback if the Worker's /turn endpoint is unreachable. STUN discovers a
+// device's public address but cannot relay traffic, so this alone only covers
+// friendly NATs — the same direct-only behaviour as before TURN was added.
+const FALLBACK_ICE = [
+    { urls: 'stun:stun.cloudflare.com:3478' },
+    { urls: 'stun:stun.l.google.com:19302' }
 ]
+
+// ICE servers are fetched from the Worker (STUN + short-lived TURN) the first
+// time a connection is made, then reused for the session. TURN is what lets
+// two devices behind hostile NATs connect by relaying through Cloudflare when
+// no direct path exists.
+const fetchIceServers = async (workerUrl) => {
+    try {
+        const httpUrl = workerUrl.replace(/^ws/, 'http').replace(/\/$/, '')
+        const res = await fetch(`${httpUrl}/turn`, { method: 'GET' })
+        if (res.ok) {
+            const data = await res.json()
+            if (data && Array.isArray(data.iceServers) && data.iceServers.length) {
+                return data.iceServers
+            }
+        }
+    } catch (e) {
+        // fall through to STUN-only
+    }
+    return FALLBACK_ICE
+}
 
 const CONNECT_TIMEOUT = 20000
 const CODE_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789' // no look-alikes
@@ -52,6 +72,8 @@ export const createNet = ({ workerUrl, onState, onMessage, onError }) => {
     let state = 'idle'
     let timer = null
     let closed = false
+    let iceServers = FALLBACK_ICE   // replaced with fetched STUN+TURN on connect
+    let icePromise = null           // resolves once servers are fetched
 
     const setState = (next) => {
         if (state === next || closed) return
@@ -108,8 +130,10 @@ export const createNet = ({ workerUrl, onState, onMessage, onError }) => {
 
     // --- peer connection -----------------------------------------------------
 
-    const makePeer = () => {
-        const peer = new RTCPeerConnection({ iceServers: ICE_SERVERS })
+    const makePeer = async () => {
+        // Ensure fetched STUN+TURN are in place before building the connection.
+        if (icePromise) { try { await icePromise } catch (e) {} }
+        const peer = new RTCPeerConnection({ iceServers })
 
         peer.onicecandidate = (e) => {
             if (e.candidate) {
@@ -175,7 +199,7 @@ export const createNet = ({ workerUrl, onState, onMessage, onError }) => {
             if (msg.t === 'peer-joined' && role === ROLE_HOST) {
                 // A joiner arrived. Host creates the channel and the offer.
                 setState('connecting')
-                pc = makePeer()
+                pc = await makePeer()
                 wireChannel(pc.createDataChannel('game', { ordered: true }))
                 const offer = await pc.createOffer()
                 await pc.setLocalDescription(offer)
@@ -185,7 +209,7 @@ export const createNet = ({ workerUrl, onState, onMessage, onError }) => {
 
             if (msg.t === 'offer' && role === ROLE_JOIN) {
                 setState('connecting')
-                pc = makePeer()
+                pc = await makePeer()
                 pc.ondatachannel = (e) => wireChannel(e.channel)
                 await pc.setRemoteDescription(msg.sdp)
                 const answer = await pc.createAnswer()
@@ -228,6 +252,15 @@ export const createNet = ({ workerUrl, onState, onMessage, onError }) => {
         timer = setTimeout(() => {
             if (state !== 'connected') fail('timed out')
         }, CONNECT_TIMEOUT)
+
+        // Fetch ICE servers first (STUN + TURN). Both peers need them before
+        // building the connection; the host in particular must have them before
+        // a joiner triggers the offer. Awaited in makePeer so a fast joiner
+        // can't build the connection before the servers arrive. Failures fall
+        // back to STUN.
+        icePromise = fetchIceServers(workerUrl).then((servers) => {
+            if (!closed) iceServers = servers
+        })
 
         openSocket(code).then((socket) => {
             if (closed) { try { socket.close() } catch (e) {} return }

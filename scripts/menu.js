@@ -87,8 +87,14 @@ const wireGameObserver = () => {
         }
     })
 
-    // Host starts the next round for both; joiner's reset asks the host.
+    // Reset behaviour depends on mode. Outside a live match (single-player, or
+    // multiplayer that has ended/disconnected) it must fall back to a normal
+    // local restart, otherwise New Game does nothing.
     window.HangmanGame.setResetHandler(async () => {
+        if (!matchActive) {
+            window.HangmanGame.start()
+            return
+        }
         if (isHost) {
             const puzzle = await window.HangmanGame.fetchPuzzle()
             startRound(puzzle)
