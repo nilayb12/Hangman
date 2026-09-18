@@ -23,9 +23,9 @@
 const ROLE_HOST = 'host'
 const ROLE_JOIN = 'join'
 
-// Fallback if the Worker's /turn endpoint is unreachable. STUN discovers a
-// device's public address but cannot relay traffic, so this alone only covers
-// friendly NATs — the same direct-only behaviour as before TURN was added.
+// Used if the Worker's /turn endpoint is unreachable. STUN can discover a
+// device's public address but cannot relay traffic, so this alone only connects
+// devices on cooperative networks (no relay for restrictive NATs).
 const FALLBACK_ICE = [
     { urls: 'stun:stun.cloudflare.com:3478' },
     { urls: 'stun:stun.l.google.com:19302' }
@@ -160,8 +160,8 @@ export const createNet = ({ workerUrl, onState, onMessage, onError }) => {
         channel = ch
         ch.onopen = () => {
             clearTimeout(timer)
-            // The signalling socket has done its job. Closing it frees the
-            // room slot and proves gameplay is purely peer-to-peer.
+            // Handshake complete: close the signalling socket to free the room
+            // slot. Gameplay runs entirely peer-to-peer from here.
             if (ws) { try { ws.close() } catch (e) {} ws = null }
             setState('connected')
         }
@@ -186,8 +186,8 @@ export const createNet = ({ workerUrl, onState, onMessage, onError }) => {
             }
 
             if (msg.t === 'joined') {
-                // First in the room hosts; second joins. This is the single
-                // source of truth for role, decided by the Worker's count.
+                // Role is decided by arrival order: first peer in the room is
+                // the host, second is the joiner.
                 role = msg.peers === 1 ? ROLE_HOST : ROLE_JOIN
                 if (role === ROLE_HOST) {
                     // Wait for a peer before building the offer.
@@ -253,11 +253,9 @@ export const createNet = ({ workerUrl, onState, onMessage, onError }) => {
             if (state !== 'connected') fail('timed out')
         }, CONNECT_TIMEOUT)
 
-        // Fetch ICE servers first (STUN + TURN). Both peers need them before
-        // building the connection; the host in particular must have them before
-        // a joiner triggers the offer. Awaited in makePeer so a fast joiner
-        // can't build the connection before the servers arrive. Failures fall
-        // back to STUN.
+        // Fetch ICE servers (STUN + TURN) before building the connection.
+        // makePeer awaits this, so the peer connection is never created before
+        // the servers are ready. On failure, falls back to STUN only.
         icePromise = fetchIceServers(workerUrl).then((servers) => {
             if (!closed) iceServers = servers
         })

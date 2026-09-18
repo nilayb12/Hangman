@@ -41,6 +41,20 @@ const oppLeft = $('opp-left')
 const oppMissed = $('opp-missed')
 const oppDoneEl = $('opp-done')
 
+// Disable New Game and the difficulty/word controls during a race, so neither
+// player can change the puzzle or start a new round while the other is still
+// solving. Re-enabled when both finish, or on disconnect.
+const resetBtn = $('reset')
+const scaleInputs = () => document.querySelectorAll('#scale input, #wordscale input')
+
+const lockControls = (locked) => {
+    resetBtn.disabled = locked
+    scaleInputs().forEach((input) => { input.disabled = locked })
+    document.querySelectorAll('#scale, #wordscale').forEach((el) => {
+        el.classList.toggle('scale--locked', locked)
+    })
+}
+
 const resetOpponentPanel = () => {
     oppStatus.textContent = 'connected'
     oppLeft.textContent = '5'
@@ -69,6 +83,10 @@ const settleIfDone = () => {
     oppDoneEl.classList.add(
         verdict.startsWith('You win') ? 'opponent__done--won' : 'opponent__done--lost'
     )
+
+    // Both players are done — the round is over, so re-enable New Game and the
+    // difficulty/word controls for the next round.
+    lockControls(false)
 }
 
 // Observe the local game and relay progress to the peer.
@@ -95,35 +113,78 @@ const wireGameObserver = () => {
             window.HangmanGame.start()
             return
         }
+        // Clear the finished board and show the waiting state at once, so it
+        // doesn't linger while the shared puzzle is fetched/relayed.
+        window.HangmanGame.showWaiting('Fetching a new puzzle\u2026')
         if (isHost) {
+            // Tell the joiner to clear now too, before the puzzle is ready.
+            send({ t: 'round-coming' })
             const puzzle = await window.HangmanGame.fetchPuzzle()
             startRound(puzzle)
             send({ t: 'round', puzzle })
         } else {
+            // Only the host fetches words (to keep both boards identical), so
+            // the joiner requests a round and waits for the host to send it.
+            // The watchdog recovers if the host never responds.
             send({ t: 'request-round' })
+            // Block a second request until this one resolves.
+            resetBtn.disabled = true
+            armRoundWatchdog()
         }
     })
 }
 
-const startRound = (puzzle) => {
+// Joiner-side guard: if a requested round doesn't arrive, surface it and let
+// the player retry rather than sitting on "Fetching..." indefinitely.
+let roundWatchdog = null
+const ROUND_WAIT = 8000
+
+const armRoundWatchdog = () => {
+    clearRoundWatchdog()
+    roundWatchdog = setTimeout(() => {
+        if (!matchActive) return
+        window.HangmanGame.showWaiting(
+            'No response from host. Tap New game to try again.'
+        )
+        // Leave controls usable so the player can retry or change mode.
+        lockControls(false)
+    }, ROUND_WAIT)
+}
+
+const clearRoundWatchdog = () => {
+    if (roundWatchdog) { clearTimeout(roundWatchdog); roundWatchdog = null }
+}
+
+const startRound = async (puzzle) => {
     myDone = null
     oppDone = null
     matchActive = true
     resetOpponentPanel()
-    window.HangmanGame.start(puzzle)
+    // Lock the controls only after the game has started. startGame() re-enables
+    // the reset button when it finishes, so locking beforehand would be undone.
+    await window.HangmanGame.start(puzzle)
+    lockControls(true)
 }
 
 // --- peer message handling --------------------------------------------------
 
 const onPeerMessage = (msg) => {
     switch (msg.t) {
+        case 'round-coming':
+            // Host is fetching the next puzzle; clear our board so the finished
+            // one doesn't linger until the words arrive.
+            window.HangmanGame.showWaiting('Fetching a new puzzle\u2026')
+            break
         case 'round':
             // Host sent the shared words; begin the round on this side.
+            clearRoundWatchdog()
             startRound(msg.puzzle)
             break
         case 'request-round':
             // Joiner asked for a new round; only the host fetches.
             if (isHost) {
+                window.HangmanGame.showWaiting('Fetching a new puzzle\u2026')
+                send({ t: 'round-coming' })
                 window.HangmanGame.fetchPuzzle().then((puzzle) => {
                     startRound(puzzle)
                     send({ t: 'round', puzzle })
@@ -166,6 +227,7 @@ const resetLobby = () => {
 const teardownNet = () => {
     if (net) { net.close(); net = null }
     matchActive = false
+    clearRoundWatchdog()
     opponentPanel.hidden = true
 }
 
@@ -184,7 +246,7 @@ const beginMatch = async () => {
     // Joiner's startRound fires when the 'round' message arrives.
 }
 
-// Injectable so tests can supply a loopback transport. Defaults to real WebRTC.
+// Uses the real WebRTC transport, or a test-injected one if present.
 const netFactory = window.__netFactory || createNet
 const makeNet = () => netFactory({
     workerUrl: WORKER_URL,
@@ -196,6 +258,10 @@ const makeNet = () => netFactory({
                 // Lost the peer mid-match.
                 oppStatus.textContent = 'disconnected'
                 matchActive = false
+                clearRoundWatchdog()
+                // The lock existed to keep the race fair; with no opponent left
+                // it only gets in the way, so hand the controls back.
+                lockControls(false)
             } else {
                 // Failed during the lobby handshake.
                 const target = isHost ? hostStatus : joinStatus
@@ -216,6 +282,19 @@ const goHome = () => {
     show('home')
 }
 
+// Back from the lobby: if we're in the host or join sub-view, return to the
+// two-option choose screen (and drop any half-open connection). Only go all the
+// way home when already on the choose screen.
+const lobbyBack = () => {
+    const inSubView = !hostView.hidden || !joinView.hidden
+    if (inSubView) {
+        teardownNet()      // cancel a pending host/join handshake
+        resetLobby()       // back to the two buttons
+    } else {
+        goHome()
+    }
+}
+
 $('go-single').addEventListener('click', () => {
     teardownNet()
     matchActive = false
@@ -229,7 +308,7 @@ $('go-multi').addEventListener('click', () => {
 })
 
 document.querySelectorAll('[data-home]').forEach((btn) => {
-    btn.addEventListener('click', goHome)
+    btn.addEventListener('click', lobbyBack)
 })
 
 $('lobby-host').addEventListener('click', () => {
@@ -267,12 +346,12 @@ joinInput.addEventListener('keydown', (e) => {
 
 wireGameObserver()
 
-// Minimal test seam: lets a harness read match state without scraping the DOM.
+// Exposes match state for automated tests.
 window.__mpState = () => ({
     isHost, matchActive, myDone, oppDone,
     connected: !!(net && net.state === 'connected')
 })
 
-// Start on the home screen. app.js has already booted a single-player game
-// underneath; it simply isn't visible until "Single player" is chosen.
+// Show the home screen first. app.js has already started a single-player game,
+// but it stays hidden until the player chooses "Single player".
 show('home')

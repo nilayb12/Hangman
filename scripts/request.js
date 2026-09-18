@@ -7,27 +7,23 @@
 //
 // Two constraints shape the request:
 //
-//   1. `diff` is only honoured for 5 or fewer words. Above that the server
-//      silently ignores it, so we ask for exactly as many words as the phrase
-//      needs and never over-fetch. That also keeps the load on a free dyno to
-//      a handful of words per game.
+//   1. `diff` is only honoured for requests of 5 or fewer words. Above that the
+//      server ignores it, so we request exactly the number of words needed.
 //
-//   2. `diff` appears to filter by rejection sampling, so low values are the
-//      slow path: diff=1 has been observed taking 29s and returning 503 at
-//      Heroku's 30s router timeout, while the same request without `diff`
-//      answers in under a second. Hence the timeout and the fallback below.
+//   2. Low `diff` values can be very slow (occasionally timing out with a 503),
+//      while a request without `diff` returns quickly. Hence the request
+//      timeout and the fallback below.
 
 const ENDPOINT = 'https://random-word-api.herokuapp.com/word'
 const REQUEST_TIMEOUT = 9000
 
-// The dictionary behind /all contains slurs, so the live API can serve one.
-// We over-request slightly and filter, keeping within the 5-word `diff`
-// ceiling. Blocklist ships in data/words.json.
+// The API's dictionary contains offensive words, so results are filtered against
+// a blocklist (shipped in data/words.json). We request a few extra words to
+// allow for removals, staying within the 5-word `diff` ceiling.
 const FETCH_COUNT = 5
 
-// Phrase length is player-selectable from 1 to 5. The ceiling is not a design
-// choice: `diff` stops applying above 5 words, so asking for 6 would silently
-// disable difficulty.
+// Phrase length is player-selectable from 1 to 5 words. The maximum is 5
+// because `diff` (difficulty) stops applying to larger requests.
 const WORD_CHOICES = [1, 2, 3, 4, 5]
 const DEFAULT_WORDS = 3
 
@@ -107,12 +103,12 @@ const getPuzzle = async (level, wordCount) => {
         words = await fetchWords(FETCH_COUNT, spec.diff)
     } catch (e) {
         try {
-            // The difficulty filter is the fragile path. A phrase at the
-            // wrong rarity beats no game at all, so retry once without it.
+            // Retry without the difficulty filter, which is the part most
+            // likely to be slow or fail.
             words = await fetchWords(FETCH_COUNT, null)
         } catch (e2) {
-            // No network at all. The bundled list keeps the level meaningful,
-            // which the unfiltered retry above cannot.
+            // Offline: use the bundled word list, which is organised by
+            // difficulty level.
             words = await pickOffline(key, count)
         }
     }
@@ -122,9 +118,8 @@ const getPuzzle = async (level, wordCount) => {
         .map((word) => word.toLowerCase())
         .slice(0, count)
 
-    // Filtering can leave us short, and at 5 words there is no slack at all
-    // since FETCH_COUNT is capped by the `diff` ceiling. Top up from the
-    // bundled tier rather than spending another request on a free dyno.
+    // If filtering left too few words, top up from the bundled list rather than
+    // making another network request.
     if (pool.length < count) {
         pool.push(...await pickOffline(key, count - pool.length, pool))
     }

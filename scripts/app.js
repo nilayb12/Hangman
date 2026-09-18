@@ -25,8 +25,9 @@ let wordCount = DEFAULT_WORDS
 
 /* ---------- difficulty ---------- */
 
-// Wrapped because storage throws in some embedded contexts, and a saved
-// preference is never worth breaking the game over.
+// localStorage access can throw (private mode, embedded webviews). A saved
+// preference is optional, so failures fall back to the default rather than
+// breaking the game.
 const readSetting = (key, valid, fallback) => {
     try {
         const saved = Number(window.localStorage.getItem(key))
@@ -44,9 +45,9 @@ const saveSetting = (key, value) => {
     }
 }
 
-// Both segmented controls are the same widget: a radio group whose change
-// handler updates one setting and restarts. A round lasts seconds, so there
-// is nothing worth preserving across the change.
+// Difficulty and word-count use the same widget: a radio group whose change
+// handler updates one setting and starts a new game. Changing either mid-game
+// discards the current one, which is fine since a round is short.
 const buildScale = (container, name, values, current, onPick, describe) => {
     values.forEach((value) => {
         const input = document.createElement('input')
@@ -123,8 +124,9 @@ const handleGuess = (letter) => {
     }
 }
 
-// Physical keyboard. keydown gives us e.key, so Enter arrives as "Enter"
-// and is rejected by the regex above instead of costing a guess.
+// keydown gives a named e.key, so Enter/Backspace/etc. arrive as words like
+// "Enter" and are rejected by the single-letter regex rather than counting as
+// a guess.
 window.addEventListener('keydown', (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) {
         return
@@ -163,8 +165,9 @@ const renderPuzzle = () => {
             if (failed && wasHidden) {
                 slot.classList.add('slot--revealed')
             } else if (!hidden && lastPuzzle[index] !== letter) {
-                // Only letters revealed by this guess animate. Without the
-                // comparison the whole phrase re-inks on every render.
+                // Animate only the letters newly revealed by this guess.
+                // Comparing against the previous render avoids re-animating
+                // every letter each time the board redraws.
                 slot.classList.add('slot--fresh')
             }
 
@@ -224,16 +227,16 @@ const renderBlock = () => {
     })
 }
 
-// hangman.js calls the answer a "phrase" and repeats it on a loss. Neither
-// holds any more: the words are unrelated, and the slots already reveal them.
-// Composed here rather than edited there, so the game logic stays untouched.
+// The end-of-game message. Composed here (rather than using the message from
+// hangman.js) because the answer is several unrelated words shown in the slots,
+// so there's no single "phrase" to repeat back.
 const verdictText = () => {
     if (game1.status === 'failed') {
         return 'Out of guesses. The answer is above.'
     }
 
-    // A correct guess never decrements, and status checks for zero first, so
-    // a win always leaves at least one guess standing.
+    // A win always leaves at least one guess: correct guesses don't decrement,
+    // and a loss (zero remaining) is checked first.
     const left = game1.remainingGuesses
 
     if (left === MAX_GUESSES) {
@@ -268,9 +271,9 @@ const render = () => {
 
 /* ---------- lifecycle ---------- */
 
-// Each startGame call takes a ticket. A response that comes back after a
-// newer game has started is dropped, otherwise a slow request can overwrite
-// the phrase belonging to a level the player has already moved on from.
+// Guards against overlapping starts: each call claims a new id, and a fetch
+// that resolves after a newer start began is discarded. Without this, a slow
+// word fetch could overwrite a game the player has already restarted.
 let runId = 0
 
 const setMessage = (text, variant) => {
@@ -286,9 +289,9 @@ const lockKeyboard = () => {
     })
 }
 
-// In multiplayer both players must use identical words, so the caller can pass
-// a preset puzzle string; single-player leaves it undefined and fetches.
-let onGameEvent = null   // multiplayer observer, set via window hook
+// Multiplayer passes a preset puzzle so both players get identical words;
+// single-player leaves it undefined and fetches a new one.
+let onGameEvent = null   // set by multiplayer to observe each guess
 const startGame = async (presetPuzzle) => {
     const id = ++runId
     game1 = undefined
@@ -346,20 +349,37 @@ buildScale(
 
 renderSetupNote()
 
-// Single-player reset. Multiplayer overrides this via the hook below so the
-// host controls new rounds for both players.
+// Reset button. In single-player it starts a new local game; multiplayer
+// replaces this handler so the host can drive rounds for both players.
 let onResetClick = () => startGame()
 resetBTN.addEventListener('click', () => onResetClick())
 
-// Hook surface for menu.js (multiplayer). Kept tiny and additive; single-player
-// never touches it.
+// Interface used by the multiplayer layer (menu.js). Single-player ignores it.
 window.HangmanGame = {
     _word: () => game1 ? game1.word.join('') : null,
     start: (puzzle) => startGame(puzzle),
     setObserver: (fn) => { onGameEvent = fn },
     setResetHandler: (fn) => { onResetClick = fn },
     getWordConfig: () => ({ level, wordCount }),
-    fetchPuzzle: () => getPuzzle(level, wordCount)
+    fetchPuzzle: () => getPuzzle(level, wordCount),
+    // Clear the board and show a waiting message without fetching. Multiplayer
+    // uses this so the finished board clears the moment New Game is pressed,
+    // rather than lingering until the shared puzzle arrives over the network.
+    showWaiting: (text) => {
+        runId++   // discard any in-flight start so it can't render over this
+        game1 = undefined
+        lastPuzzle = ''
+        puzzleDIV.innerHTML = ''
+        puzzleSR.textContent = ''
+        missedEL.textContent = '\u2014'
+        remainingEL.textContent = ''
+        tallySPAN.innerHTML = ''
+        figureParts.forEach((part) => part.classList.remove('is-drawn'))
+        gallowsSVG.classList.remove('is-void')
+        resultCell.hidden = true
+        lockKeyboard()
+        setMessage(text || 'Waiting for the next round\u2026', 'wait')
+    }
 }
 
 startGame()

@@ -120,12 +120,11 @@ body {
     transition: stroke .4s ease-out;
 }
 
-/* A win means the gallows never gets built, so the sheet is cancelled the way
-   a real drawing office cancels a superseded design. */
+/* On a win, the drawing is stamped VOID like a cancelled blueprint. */
 .gallows__stamp {
     opacity: 0;
-    /* class-toggled rather than keyframed, so disabling motion makes it
-       appear instantly instead of not at all */
+    /* Toggled by a class with a transition (not a keyframe animation), so that
+       under prefers-reduced-motion it appears instantly instead of not at all. */
     transition: opacity .4s ease-out .15s;
 }
 
@@ -254,7 +253,7 @@ body {
 /* ---------- title block ---------- */
 
 .block {
-    margin-top: auto;   /* pins the readout to the foot of the panel */
+    margin-top: auto;   /* keep the readout at the bottom of the panel */
     border: var(--hair) solid var(--line);
 }
 
@@ -387,7 +386,7 @@ body {
     color: var(--bg);
 }
 
-/* a wrong letter is cancelled, the way a drawing revision strikes an item */
+/* A wrong letter is struck through, like a crossed-out item on a drawing. */
 .key--miss {
     border-color: var(--oxide);
     color: var(--oxide);
@@ -628,16 +627,15 @@ body {
 
     .sheet {
         border: none;
-        /* Definite height, not just a floor: a 1fr row only distributes free
-           space when the container has a size to divide. With min-height
-           alone the grid grows and the row sizes to its content instead. */
+        /* An explicit height (not just min-height) is required so the 1fr row
+           below has a fixed height to divide; otherwise the grid grows to fit
+           its content and the row won't flex. */
         height: 100dvh;
         min-height: 100dvh;
-        /* Two columns so the gallows and the opponent panel share the top row.
-           The drawing compresses to a stub on mobile, so the space beside it
-           was going to waste. */
+        /* Two columns: on mobile the gallows shrinks to a small drawing, so the
+           opponent panel sits beside it in the top row. */
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        /* The stage row takes the slack; the puzzle and keys size to content. */
+        /* The stage row flexes; the puzzle and keyboard size to their content. */
         grid-template-rows: auto minmax(0, 1fr) auto auto;
         grid-template-areas:
             "head  head"
@@ -646,9 +644,7 @@ body {
             "keys  keys";
     }
 
-    /* Single-player: no opponent, so the drawing spans the full width as before. */
-    .opponent[hidden] + .panel,
-    .opponent[hidden] { }
+    /* Single-player: no opponent panel, so the drawing spans the full width. */
     .sheet:has(.opponent[hidden]) {
         grid-template-columns: minmax(0, 1fr);
         grid-template-areas:
@@ -665,9 +661,8 @@ body {
 
     .stage {
         justify-self: stretch;
-        /* height:100% is load-bearing. Without it the SVG resolves its
-           percentage against an indefinite box, ignores the collapsed row
-           and overflows at full size. */
+        /* height:100% is required: it gives the SVG a definite height to size
+           against, so it shrinks with the row instead of overflowing it. */
         height: 100%;
         min-height: 0;
         display: flex;
@@ -675,8 +670,8 @@ body {
         justify-content: center;
     }
 
-    /* Fills the row it is given, capped so it never dominates and floored so
-       a five-word phrase cannot squeeze it out of existence. */
+    /* Fills its row, capped so it stays modest and floored so it remains
+       visible even when a long phrase pushes the layout. */
     .gallows {
         height: 100%;
         max-height: 11rem;
@@ -898,3 +893,10 @@ body {
 
 .opponent__done--won { color: var(--chalk); }
 .opponent__done--lost { color: var(--oxide); }
+
+/* Difficulty and word controls are locked mid-race in multiplayer. The radio
+   inputs are already disabled; this just signals it visually. */
+.scale--locked {
+    opacity: 0.45;
+    pointer-events: none;
+}
