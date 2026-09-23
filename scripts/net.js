@@ -114,7 +114,7 @@ export const createNet = ({ workerUrl, onState, onMessage, onError }) => {
             return
         }
 
-        const onOpenErr = (e) => reject(new Error('signalling unreachable'))
+        const onOpenErr = () => reject(new Error('signalling unreachable'))
         socket.addEventListener('error', onOpenErr, { once: true })
         socket.addEventListener('open', () => {
             socket.removeEventListener('error', onOpenErr)

@@ -39,7 +39,8 @@ const opponentPanel = $('opponent')
 const oppStatus = $('opp-status')
 const oppLeft = $('opp-left')
 const oppMissed = $('opp-missed')
-const oppDoneEl = $('opp-done')
+const resultBox = $('result')
+const verdictEl = $('verdict')
 
 // Disable New Game and the difficulty/word controls during a race, so neither
 // player can change the puzzle or start a new round while the other is still
@@ -59,13 +60,14 @@ const resetOpponentPanel = () => {
     oppStatus.textContent = 'connected'
     oppLeft.textContent = '5'
     oppMissed.textContent = '0'
-    oppDoneEl.textContent = ''
-    oppDoneEl.className = 'opponent__done'
 }
 
 const send = (obj) => net && net.send(obj)
 
-// Decide and announce the outcome once both players have finished.
+// Once both players finish, decide the match and show it in the result box,
+// replacing whichever interim message ("Solved..."/"Out of guesses") was there.
+// The second player to finish sees this immediately, since it's the point at
+// which both are done.
 const settleIfDone = () => {
     if (!myDone || !oppDone) return
 
@@ -79,13 +81,13 @@ const settleIfDone = () => {
     } else {
         verdict = 'Both out of guesses.'
     }
-    oppDoneEl.textContent = verdict
-    oppDoneEl.classList.add(
-        verdict.startsWith('You win') ? 'opponent__done--won' : 'opponent__done--lost'
-    )
 
-    // Both players are done — the round is over, so re-enable New Game and the
-    // difficulty/word controls for the next round.
+    resultBox.hidden = false
+    verdictEl.className = 'verdict ' +
+        (verdict.startsWith('You win') ? 'verdict--won' : 'verdict--lost')
+    verdictEl.textContent = verdict
+
+    // Round over: re-enable New Game and the difficulty/word controls.
     lockControls(false)
 }
 
@@ -242,8 +244,12 @@ const beginMatch = async () => {
         const puzzle = await window.HangmanGame.fetchPuzzle()
         startRound(puzzle)
         send({ t: 'round', puzzle })
+    } else {
+        // Clear the leftover single-player board and show a waiting message
+        // until the host's words arrive, so the joiner never briefly sees a
+        // different puzzle.
+        window.HangmanGame.showWaiting('Waiting for the host\u2026')
     }
-    // Joiner's startRound fires when the 'round' message arrives.
 }
 
 // Uses the real WebRTC transport, or a test-injected one if present.

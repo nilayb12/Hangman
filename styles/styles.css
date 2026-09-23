@@ -55,14 +55,44 @@ body {
     grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
     grid-template-areas:
         "head  head"
-        "stage opp"
         "stage panel"
         "keys  keys";
     align-items: start;
 }
 
-.opponent { grid-area: opp; }
-.opponent[hidden] { display: none; }
+.opponent[hidden],
+.result-box[hidden] { display: none; }
+
+/* Result and opponent side-by-side (multiplayer). With only the result present
+   (single-player) it spans the row on its own. */
+.outcome {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--gap);
+}
+
+.outcome:has(.opponent:not([hidden])) {
+    grid-template-columns: 1fr 1fr;
+}
+
+.result-box {
+    border: var(--hair) solid var(--line);
+    /* Sit flush on the block below by dropping the shared border. */
+    border-bottom: none;
+    padding: 0.5rem 0.75rem;
+    display: grid;
+    gap: 0.25rem;
+    align-content: start;
+}
+
+/* Outcome + block are one unit pinned to the foot of the panel, so they stay
+   flush together and at the bottom whatever the puzzle height. */
+.panel__foot {
+    margin-top: auto;
+}
+
+/* Nothing to show before the game ends: keep the row clear in single-player. */
+.outcome:not(:has(.opponent:not([hidden]))) .result-box[hidden] { display: none; }
 
 .sheet__head  { grid-area: head; }
 .stage        { grid-area: stage; }
@@ -253,7 +283,6 @@ body {
 /* ---------- title block ---------- */
 
 .block {
-    margin-top: auto;   /* keep the readout at the bottom of the panel */
     border: var(--hair) solid var(--line);
 }
 
@@ -268,10 +297,6 @@ body {
 }
 
 /* Spans the full width above the two readings, hidden until a game ends. */
-.block__cell--result {
-    grid-column: 1 / -1;
-    border-bottom: var(--hair) solid var(--line);
-}
 
 /* Divider follows the flow direction, and only ever between the two
    readings -- the result row rules itself off with a bottom border. */
@@ -632,21 +657,9 @@ body {
            its content and the row won't flex. */
         height: 100dvh;
         min-height: 100dvh;
-        /* Two columns: on mobile the gallows shrinks to a small drawing, so the
-           opponent panel sits beside it in the top row. */
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        /* The stage row flexes; the puzzle and keyboard size to their content. */
-        grid-template-rows: auto minmax(0, 1fr) auto auto;
-        grid-template-areas:
-            "head  head"
-            "stage opp"
-            "panel panel"
-            "keys  keys";
-    }
-
-    /* Single-player: no opponent panel, so the drawing spans the full width. */
-    .sheet:has(.opponent[hidden]) {
         grid-template-columns: minmax(0, 1fr);
+        /* The stage row flexes; puzzle and keyboard size to their content. */
+        grid-template-rows: auto minmax(0, 1fr) auto auto;
         grid-template-areas:
             "head"
             "stage"
@@ -654,10 +667,22 @@ body {
             "keys";
     }
 
-    .opponent {
-        align-self: stretch;
-        margin: 0;
+    /* Opponent stacks above the result on narrow screens (side-by-side would
+       be too cramped), and both take the full width. */
+    .outcome,
+    .outcome:has(.opponent:not([hidden])) {
+        grid-template-columns: 1fr;
     }
+
+    .outcome {
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Opponent above result, both full width when stacked. */
+    #opponent { order: 1; }
+    #result   { order: 2; }
+    .outcome > * { width: 100%; }
 
     .stage {
         justify-self: stretch;
@@ -852,47 +877,48 @@ body {
 
 .opponent {
     border: var(--hair) solid var(--line);
-    padding: 0.6rem 0.75rem;
+    padding: 0.5rem 0.6rem;
     display: grid;
-    gap: 0.4rem;
+    gap: 0.35rem;
     align-self: start;
+    min-width: 0;                /* allow the panel to shrink within its column */
 }
 
 .opponent__head {
     display: flex;
+    flex-wrap: wrap;             /* status drops below the label if space is tight */
     justify-content: space-between;
     align-items: baseline;
-    gap: 0.5rem;
+    gap: 0.15rem 0.5rem;
 }
 
 .opponent__label {
     color: var(--pale);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 600;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
 }
 
 .opponent__status {
     color: var(--pale);
     font-family: var(--mono);
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 }
 
 .opponent__body {
     display: flex;
-    gap: 1rem;
+    flex-wrap: wrap;
+    gap: 0.2rem 0.9rem;
     font-family: var(--mono);
-    font-size: 0.95rem;
+    font-size: 0.85rem;
+    min-width: 0;
 }
 
-.opponent__done {
-    color: var(--chalk);
-    font-weight: 700;
+.opponent__metric {
+    white-space: nowrap;       /* keep "Left: 5" together, never split mid-label */
 }
 
-.opponent__done--won { color: var(--chalk); }
-.opponent__done--lost { color: var(--oxide); }
 
 /* Difficulty and word controls are locked mid-race in multiplayer. The radio
    inputs are already disabled; this just signals it visually. */

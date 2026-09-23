@@ -50,7 +50,7 @@
             <div id="lobby-join-view" class="lobby__view" hidden>
                 <label class="lobby__label" for="join-code">Enter the code</label>
                 <input id="join-code" class="lobby__input" type="text"
-                       inputmode="latin" autocapitalize="off" autocorrect="off"
+                       inputmode="text" autocapitalize="off" autocorrect="off"
                        autocomplete="off" spellcheck="false" maxlength="12" />
                 <button id="join-go" class="cta cta--home" type="button">Join</button>
                 <p id="lobby-join-status" class="lobby__status"></p>
@@ -145,34 +145,35 @@
             </svg>
         </section>
 
-
-        <section id="opponent" class="opponent" hidden aria-label="Opponent">
-            <div class="opponent__head">
-                <span class="opponent__label">Opponent</span>
-                <span id="opp-status" class="opponent__status">connecting&hellip;</span>
-            </div>
-            <div class="opponent__body">
-                <span class="opponent__metric">Left: <b id="opp-left">5</b></span>
-                <span class="opponent__metric">Missed: <b id="opp-missed">0</b></span>
-                <span id="opp-done" class="opponent__done"></span>
-            </div>
-        </section>
-
         <section class="panel">
 
             <div id="puzzle" class="puzzle" aria-hidden="true"></div>
             <p id="puzzle-sr" class="sr-only" role="status" aria-live="polite"></p>
 
-            <div class="block">
-                <!-- The verdict is a status line on the title block, the way a
-                     drawing sheet records its own state. Fixed to the foot of
-                     the panel, so it no longer drifts with phrase length. -->
-                <dl class="block__grid">
-                <div id="result" class="block__cell block__cell--result" hidden>
-                    <dt class="block__label">Result</dt>
-                    <dd id="verdict" class="verdict" role="status"
-                        aria-live="polite"></dd>
+            <!-- Result and opponent sit side-by-side in multiplayer (stacked on
+                 mobile); in single-player only the result shows. -->
+            <div class="panel__foot">
+            <div class="outcome">
+                <div id="result" class="result-box" hidden>
+                    <span class="block__label">Result</span>
+                    <p id="verdict" class="verdict" role="status"
+                       aria-live="polite"></p>
                 </div>
+
+                <section id="opponent" class="opponent" hidden aria-label="Opponent">
+                    <div class="opponent__head">
+                        <span class="opponent__label">Opponent</span>
+                        <span id="opp-status" class="opponent__status">connecting&hellip;</span>
+                    </div>
+                    <div class="opponent__body">
+                        <span class="opponent__metric">Left: <b id="opp-left">5</b></span>
+                        <span class="opponent__metric">Missed: <b id="opp-missed">0</b></span>
+                    </div>
+                </section>
+            </div>
+
+            <div class="block">
+                <dl class="block__grid">
                 <div class="block__cell block__cell--stat">
                     <dt class="block__label">Guesses left</dt>
                     <dd class="block__value">
@@ -185,6 +186,7 @@
                     <dd id="missed" class="block__value block__value--missed">&mdash;</dd>
                 </div>
                 </dl>
+            </div>
             </div>
         </section>
 
